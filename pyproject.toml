@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "chatui"
+version = "0.1.0"
+description = ""
+authors = ["Barnaby Gray <barnaby@pickle.me.uk>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+textual = "^0.30.0"
+sqlalchemy = "^2.0.19"
+openai = "^0.27.8"
+tiktoken = "^0.4.0"
+pydantic = "^2.1.1"
+
+
+[tool.poetry.group.dev.dependencies]
+textual-dev = "^1.0.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+chat = "chatui.main:main"
+
+[tool.ruff]
+line-length = 120

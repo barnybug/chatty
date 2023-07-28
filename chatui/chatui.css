@@ -1,0 +1,24 @@
+
+#sessions {
+    dock: left;
+    width: 0.2fr;
+    min-width: 25;
+    border: solid $primary;
+}
+
+#input {
+    dock: bottom;
+}
+
+ChatLog > ListItem {
+    background: $surface;
+}
+ChatLog > ListItem > Widget :hover {
+    background: $boost;
+}
+ChatLog > ListItem.--highlight {
+    background: $accent 50%;
+}
+ChatLog:focus > ListItem.--highlight {
+    background: $accent;
+}
