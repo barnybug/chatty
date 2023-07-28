@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "chatui"
+name = "chatty"
 version = "0.1.0"
 description = ""
 authors = ["Barnaby Gray <barnaby@pickle.me.uk>"]
@@ -22,7 +22,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-chat = "chatui.main:main"
+chat = "chatty.main:main"
 
 [tool.ruff]
 line-length = 120

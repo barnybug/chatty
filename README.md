@@ -1,4 +1,4 @@
-# Chat UI
+# Chatty 💻🤖
 
 A console chat UI to Chat GPT and eventually other LLMs.
 
@@ -8,11 +8,13 @@ Using the awesome [Textual](https://github.com/Textualize/textual) console frame
 
 ## Installation
 
-$ pip install -U git+https://github.com/barnybug/chatui.git@main
-$ chat
+    $ pip install -U git+https://github.com/barnybug/chatty.git@main
+    $ chat
 
-## Enhancements
+## Features
 
+- [x] Multiple sessions
+- [x] Message editing
 - [ ] Support other LLMs
 - [ ] Configurable profiles
 - [ ] LLM parameter edit
