@@ -1,10 +1,10 @@
+from dataclasses import dataclass
 from typing import List
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
-from sqlalchemy import inspect
 
 
 class Base(DeclarativeBase):
@@ -15,6 +15,7 @@ class Session(Base):
     __tablename__ = "session"
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str | None]
+    model: Mapped[str]
     messages: Mapped[List["Message"]] = relationship(
         back_populates="session",
         cascade="all, delete-orphan",
@@ -42,3 +43,10 @@ class Message(Base):
 
     def append(self, b: "Message"):
         self.content = (self.content or "") + b.content
+
+
+@dataclass
+class Update:
+    role: str | None = None
+    content: str | None = None
+    finish_reason: str | None = None

@@ -15,9 +15,9 @@ Using the awesome [Textual](https://github.com/Textualize/textual) console frame
 
 - [x] Multiple sessions
 - [x] Message editing
-- [ ] Support other LLMs
-- [ ] Configurable profiles
+- [x] Configurable profiles
+- [x] Support transformers (huggingface, etc)
+- [ ] Support Cohere
+- [ ] Support Anthropic
 - [ ] LLM parameter edit
 - [ ] Rerun all chat log
-
-

@@ -1,14 +1,12 @@
-from dataclasses import dataclass
-from operator import is_
-from typing import AsyncGenerator
-
+from functools import cache
 from rich.text import Text
-from sqlalchemy import inspect, orm
+from sqlalchemy import orm
 from textual import on
 from textual.reactive import reactive
 from textual.app import App, ComposeResult
 from textual.containers import Vertical
 from textual.message import Message as TextualMessage
+from textual.screen import ModalScreen
 from textual.validation import Length
 from textual.widgets import (
     Header,
@@ -19,57 +17,15 @@ from textual.widgets import (
     ListView,
     Static,
 )
-import openai
-import tiktoken
-from pydantic import BaseModel
 
+from . import config
 from . import db
 from . import models
+from . import llm
+from .llm.base import Base
 
-openai.log = "debug"
+
 engine = db.engine()
-
-
-@dataclass
-class Update:
-    role: str | None = None
-    content: str | None = None
-    finish_reason: str | None = None
-
-
-class OpenAIModel(BaseModel):
-    model: str = "gpt-3.5-turbo"
-
-    async def query(
-        self, messages: list[models.Message]
-    ) -> AsyncGenerator[Update, None]:
-        msgs = [
-            {"role": message.role, "content": message.content}
-            for message in messages
-            if message.role in ("user", "assistant", "system")
-        ]
-        try:
-            response = await openai.ChatCompletion.acreate(
-                # model="gpt-4",
-                model="gpt-3.5-turbo",
-                messages=msgs,
-                stream=True,
-            )
-            async for chunk in response:
-                choice = chunk["choices"][0]
-                delta = choice["delta"]
-                if "role" in delta:
-                    yield Update(role=delta["role"])
-                if "content" in delta:
-                    yield Update(content=delta["content"])
-                if choice.get("finish_reason"):
-                    yield Update(finish_reason=choice["finish_reason"])
-        except openai.InvalidRequestError as ex:
-            yield Update(role="error", content=str(ex))
-
-    def token_count(self, s: str) -> int:
-        enc = tiktoken.encoding_for_model(self.model)
-        return len(enc.encode(s))
 
 
 class ChatLog(ListView):
@@ -123,12 +79,18 @@ class ChatLog(ListView):
                 self.post_message(ChatLog.Action(self.index, edit=True))
 
 
+@cache
+def create_model(c: config.ModelConfig) -> Base:
+    return llm.load_llm(c)
+
+
 class SessionWidget(Static):
-    session: reactive[models.Session] = reactive(models.Session)
+    session = reactive(models.Session)
     editing: int | None = None
 
-    def __init__(self, session: models.Session):
+    def __init__(self, config: config.Config, session: models.Session):
         super().__init__(id="right")
+        self.config = config
         self.session = session
 
     def compose(self) -> ComposeResult:
@@ -151,13 +113,19 @@ class SessionWidget(Static):
     def watch_session(self, session: models.Session):
         if self.is_attached:
             self.render_log()
+            config = self.config.model[self.session.model]
+            self.app.title = config.title
+
+    @property
+    def model_instance(self) -> Base:
+        return create_model(self.config.model[self.session.model])
 
     @on(Input.Submitted)
     async def send(self, event: Input.Submitted):
         if event.validation_result is None or not event.validation_result.is_valid:
             return
 
-        model = OpenAIModel()
+        model = self.model_instance
         i = self.query_one(Input)
         text = i.value
 
@@ -232,6 +200,24 @@ class SessionWidget(Static):
             self.render_log()
 
 
+class ModelPickerModal(ModalScreen[str]):
+    AUTO_FOCUS = "ListView"
+
+    def __init__(self, config: config.Config) -> None:
+        self.config = config
+        super().__init__()
+
+    def compose(self) -> ComposeResult:
+        items = [ListItem(Label(model.title)) for model in self.config.model.values()]
+        self.models = list(self.config.model.keys())
+        yield ListView(*items)
+
+    @on(ListView.Selected)
+    def on_selected(self, event: ListView.Selected) -> None:
+        model = self.models[event.list_view.index]
+        self.dismiss(model)
+
+
 class ChatApp(App):
     AUTO_FOCUS = "Input"
     BINDINGS = [
@@ -243,6 +229,10 @@ class ChatApp(App):
     CSS_PATH = "chatui.css"
 
     sessions: list[models.Session] = []
+
+    def __init__(self):
+        self.config = config.load_or_default()
+        super().__init__()
 
     def compose(self) -> ComposeResult:
         with orm.Session(engine) as sess:
@@ -261,10 +251,10 @@ class ChatApp(App):
             *items,
             id="sessions",
         )
-        yield SessionWidget(session)
+        yield SessionWidget(self.config, session)
         yield Footer()
 
-    @on(ListView.Highlighted)
+    @on(ListView.Highlighted, "#sessions")
     def session_changed(self):
         list_view = self.query_one("#sessions", ListView)
         if (i := list_view.index) is not None:
@@ -272,13 +262,18 @@ class ChatApp(App):
             widget.session = self.sessions[i]
 
     def action_new_session(self) -> None:
-        list_view = self.query_one("#sessions", ListView)
-        session = models.Session()
-        self.sessions.append(session)
-        list_view.append(ListItem(Label(session.label)))
-        list_view.index = len(list_view.children) - 1
-        widget = self.query_one(SessionWidget)
-        widget.session = session
+        def model_picked(model: str) -> None:
+            list_view = self.query_one("#sessions", ListView)
+            session = models.Session(model=model)
+            self.sessions.append(session)
+            list_view.append(ListItem(Label(session.label)))
+            list_view.index = len(list_view.children) - 1
+            widget = self.query_one(SessionWidget)
+            widget.session = session
+            input = self.query_one("#input", Input)
+            input.focus()
+
+        self.push_screen(ModelPickerModal(self.config), model_picked)
 
     def action_delete_session(self) -> None:
         list_view = self.query_one("#sessions", ListView)

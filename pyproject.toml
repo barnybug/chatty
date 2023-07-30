@@ -12,10 +12,12 @@ sqlalchemy = "^2.0.19"
 openai = "^0.27.8"
 tiktoken = "^0.4.0"
 pydantic = "^2.1.1"
+ctransformers = "^0.2.15"
 
 
 [tool.poetry.group.dev.dependencies]
 textual-dev = "^1.0.1"
+ruff = "^0.0.280"
 
 [build-system]
 requires = ["poetry-core"]
