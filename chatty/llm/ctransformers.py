@@ -13,15 +13,25 @@ class CTransformers(Base):
     config: CTransformersModelConfig
 
     def model_post_init(self, __context: Any) -> None:
-        self._llm = AutoModelForCausalLM.from_pretrained(**self.config.params)
+        params = self.config.params()
+        self._llm = AutoModelForCausalLM.from_pretrained(**params)
         return super().model_post_init(__context)
 
     async def query(self, messages: list[Message]) -> AsyncGenerator[Update, None]:
-        text = "\n".join(
-            message.content
-            for message in messages
-            if message.role in ("user", "assistant", "system")
-        )
+        msgs = []
+        for i, message in enumerate(messages):
+            content = message.content
+            if message.role in "user":
+                if i == 0 and self.config.system_message:
+                    content = self.config.system_message + " " + content
+                if self.config.prefix:
+                    content = self.config.prefix + " " + content
+                if self.config.suffix:
+                    content = content + " " + self.config.suffix
+                msgs.append(content)
+            elif message.role in "assistant":
+                msgs.append(message.content)
+        text = "\n".join(msgs)
 
         queue = asyncio.Queue()
         loop = asyncio.get_event_loop()

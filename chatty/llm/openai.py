@@ -20,11 +20,13 @@ class OpenAIModel(Base):
             for message in messages
             if message.role in ("user", "assistant", "system")
         ]
+        if self.config.system_message:
+            msgs.insert(0, {"role": "system", "content": self.config.system_message})
         try:
             response = await openai.ChatCompletion.acreate(
                 messages=msgs,
                 stream=True,
-                **self.config.params,
+                **self.config.params(),
             )
             async for chunk in response:
                 choice = chunk.choices[0]

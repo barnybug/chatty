@@ -11,14 +11,16 @@ DEFAULT_CONFIG = """
 class ModelConfig(BaseModel):
     title: str
     module: Literal["ctransformers", "openai"]
+    system_message: str | None = None
 
     def __hash__(self):
         return hash(self.model_dump_json())
 
-    @property
-    def params(self) -> dict[str, Any]:
+    def params(self, exclude: set | None = None) -> dict[str, Any]:
         return self.model_dump(
-            exclude={"title", "module"}, exclude_none=True, by_alias=True
+            exclude=(exclude or set()) | {"title", "module", "system_message"},
+            exclude_none=True,
+            by_alias=True,
         )
 
 
@@ -41,6 +43,13 @@ class CTransformersModelConfig(ModelConfig):
     threads: int | None = None
     context_length: int | None = None
     gpu_layers: int | None = None
+
+    # prompts
+    prefix: str | None = None
+    suffix: str | None = None
+
+    def params(self) -> dict[str, Any]:
+        return super().params({"prefix", "suffix"})
 
 
 class OpenAIModelConfig(ModelConfig):
