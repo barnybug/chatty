@@ -29,7 +29,7 @@ class CTransformersModelConfig(ModelConfig):
     model: str = Field(..., serialization_alias="model_path_or_repo_id")
     model_file: str | None = None
     model_type: str | None = None
-    lib: Literal["avx", "basic"] | None = None
+    lib: Literal["avx2", "avx", "basic"] | None = None
     # see https://github.com/marella/ctransformers#config
     top_k: int | None = None
     top_p: float | None = None

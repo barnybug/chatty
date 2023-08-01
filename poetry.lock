@@ -293,18 +293,19 @@ files = [
 
 [[package]]
 name = "ctransformers"
-version = "0.2.15"
+version = "0.2.17"
 description = "Python bindings for the Transformer models implemented in C/C++ using GGML library."
 category = "main"
 optional = false
 python-versions = "*"
 files = [
-    {file = "ctransformers-0.2.15-py3-none-any.whl", hash = "sha256:13d8d84a3f794ae1f4ff23b930671e326b2cdd38c62168895fa1d1c4eaf85134"},
-    {file = "ctransformers-0.2.15.tar.gz", hash = "sha256:89f4ae912fee282c3fe733b66a2864732ac6f5968cadfcbcfd38974e1e9c4e79"},
+    {file = "ctransformers-0.2.17-py3-none-any.whl", hash = "sha256:903c16b38f5b2750ee34b90107c3a72351d7a9a201a6987a6560bd50874e9698"},
+    {file = "ctransformers-0.2.17.tar.gz", hash = "sha256:0c9de34cc8295ba6cb940e413130e6658fac54a99cecfa6098ac04638fd9301e"},
 ]
 
 [package.dependencies]
 huggingface-hub = "*"
+py-cpuinfo = ">=9.0.0,<10.0.0"
 
 [package.extras]
 tests = ["pytest"]
@@ -841,6 +842,18 @@ python-versions = ">=3.7"
 files = [
     {file = "packaging-23.1-py3-none-any.whl", hash = "sha256:994793af429502c4ea2ebf6bf664629d07c1a9fe974af92966e4b8d2df7edc61"},
     {file = "packaging-23.1.tar.gz", hash = "sha256:a392980d2b6cffa644431898be54b0045151319d1e7ec34f0cfed48767dd334f"},
+]
+
+[[package]]
+name = "py-cpuinfo"
+version = "9.0.0"
+description = "Get CPU info with pure Python"
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "py-cpuinfo-9.0.0.tar.gz", hash = "sha256:3cdbbf3fac90dc6f118bfd64384f309edeadd902d7c8fb17f02ffa1fc3f49690"},
+    {file = "py_cpuinfo-9.0.0-py3-none-any.whl", hash = "sha256:859625bc251f64e21f077d099d4162689c762b5d6a4c3c97553d56241c9674d5"},
 ]
 
 [[package]]
@@ -1543,4 +1556,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "2396171a5bf6c5dabe59a711cd6c6674b3f139b979926c00434796635e4e7e7f"
+content-hash = "47b22452c3d4c4c5e9e6e5dbef8ddbf9a49479dcdd70d4ac1dfce29550dc4438"
