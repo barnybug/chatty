@@ -246,7 +246,9 @@ class ChatApp(App):
                 sess.commit()
                 sess.refresh(session)
 
-        items = [ListItem(Label(session.label)) for session in self.sessions]
+        items = [
+            ListItem(Label(session.label, markup=False)) for session in self.sessions
+        ]
         yield ListView(
             *items,
             id="sessions",

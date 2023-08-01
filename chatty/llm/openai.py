@@ -39,7 +39,7 @@ class OpenAIModel(Base):
             yield Update(role="error", content=str(ex))
 
     def token_count(self, s: str) -> int:
-        enc = tiktoken.encoding_for_model(self.model)
+        enc = tiktoken.encoding_for_model(self.config.model)
         return len(enc.encode(s))
 
 
