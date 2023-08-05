@@ -6,7 +6,7 @@ from chatty import models
 
 
 class Base(BaseModel, ABC):
-    async def query(
+    def query(
         self, messages: list[models.Message]
     ) -> AsyncGenerator[models.Update, None]:
         raise NotImplementedError()

@@ -12,13 +12,14 @@ class ModelConfig(BaseModel):
     title: str
     module: Literal["ctransformers", "openai"]
     system_message: str | None = None
+    completion: bool = False
 
     def __hash__(self):
         return hash(self.model_dump_json())
 
     def params(self, exclude: set | None = None) -> dict[str, Any]:
         return self.model_dump(
-            exclude=(exclude or set()) | {"title", "module", "system_message"},
+            exclude=(exclude or set()) | set(ModelConfig.model_fields),
             exclude_none=True,
             by_alias=True,
         )

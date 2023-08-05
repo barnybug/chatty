@@ -17,6 +17,9 @@ Using the awesome [Textual](https://github.com/Textualize/textual) console frame
 - [x] Message editing
 - [x] Configurable profiles
 - [x] Support transformers (huggingface, etc)
+- [x] Completion mode
+- [ ] Stop lists
+- [x] Interrupt generation
 - [ ] Support Cohere
 - [ ] Support Anthropic
 - [ ] LLM parameter edit

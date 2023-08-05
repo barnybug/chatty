@@ -1,12 +1,21 @@
 import asyncio
+import time
 from typing import Any, AsyncGenerator
-from threading import Thread
+import threading
 
 from ctransformers import AutoModelForCausalLM
 
 from .base import Base
 from ..config import CTransformersModelConfig
 from ..models import Message, Update
+
+
+class ResultGenerator:
+    def cancel(self):
+        pass
+
+    def __aiter__(self):
+        pass
 
 
 class CTransformers(Base):
@@ -33,24 +42,46 @@ class CTransformers(Base):
                 msgs.append(message.content)
         text = "\n".join(msgs)
 
-        queue = asyncio.Queue()
+        queue = asyncio.Queue[str]()
         loop = asyncio.get_event_loop()
+        stop_event = threading.Event()
 
         def generate():
+            # Run in thread
+            last_update = 0
             tokens = self._llm.tokenize(text)
+            items = []
             for token in self._llm.generate(tokens):
-                content = self._llm.detokenize(token)
-                loop.call_soon_threadsafe(queue.put_nowait, content)
+                content = self._llm.detokenize([token])
+                items.append(content)
+                if time.time() > last_update + 0.3:
+                    loop.call_soon_threadsafe(queue.put_nowait, "".join(items))
+                    items = []
+                    last_update = time.time()
+
+                if stop_event.is_set():
+                    break
+
+            if items:
+                loop.call_soon_threadsafe(queue.put_nowait, "".join(items))
+
             loop.call_soon_threadsafe(queue.put_nowait, None)
 
-        thread = Thread(target=generate)
+        thread = threading.Thread(target=generate)
         thread.start()
-        yield Update(role="Assistant")
-        while True:
-            content = await queue.get()
-            if content is None:
-                break
-            yield Update(content=content)
+        try:
+            yield Update(role="Assistant")
+            while True:
+                content = await queue.get()
+                if content is None:
+                    break
+                yield Update(content=content)
+        except GeneratorExit:
+            # Interrupted by caller (user)
+            pass
+
+        # Signal thread to stop
+        stop_event.set()
 
         thread.join()
 

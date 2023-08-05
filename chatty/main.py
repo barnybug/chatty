@@ -1,9 +1,12 @@
+import asyncio
 from functools import cache
+from rich.style import Style
 from rich.text import Text
 from sqlalchemy import orm
 from textual import on
 from textual.reactive import reactive
 from textual.app import App, ComposeResult
+from textual.binding import Binding
 from textual.containers import Vertical
 from textual.message import Message as TextualMessage
 from textual.screen import ModalScreen
@@ -15,6 +18,7 @@ from textual.widgets import (
     Label,
     ListItem,
     ListView,
+    RichLog,
     Static,
 )
 
@@ -28,7 +32,7 @@ from .llm.base import Base
 engine = db.engine()
 
 
-class ChatLog(ListView):
+class ChatLog(RichLog):
     class Action(TextualMessage):
         def __init__(self, index: int, delete=False, edit=False) -> None:
             super().__init__()
@@ -40,14 +44,25 @@ class ChatLog(ListView):
         ("r", "rerun", "Rerun"),
         ("enter", "edit", "Edit"),
         ("backspace", "delete", "Delete"),
+        Binding("down", "cursor_down", "Down", show=False),
+        Binding("up", "cursor_up", "Up", show=False),
     ]
 
     messages = reactive(list[models.Message], always_update=True)
+    chat_mode = reactive(False)
+    index = reactive[int | None](None)
 
-    def watch_messages(self, messages: list[models.Message]):
+    def on_mount(self):
+        self.wrap = True
+        return super().on_mount()
+
+    def update(self):
         self.clear()
-        for message in messages:
-            parts = []
+        self.index_message = []
+        parts = []
+        index = 0
+        for mi, message in enumerate(self.messages):
+            colour = "white"
             if message.role:
                 colour = (
                     "blue"
@@ -56,27 +71,67 @@ class ChatLog(ListView):
                     if message.role == "error"
                     else "green"
                 )
-                parts.append((f"{message.role.title()}: ", colour))
-            if message.content:
-                parts.append(message.content)
-            if not message.content and not message.role:
-                parts.append("…")
+            invert = False
+            if message.role == "user":
+                self.index_message.append(mi)
+                if index == self.index:
+                    invert = True
+                    colour = Style(color="white", bgcolor=colour)
+                index += 1
 
-            content = Text.assemble(*parts)
-            self.append(ListItem(Static(content)))
-        self.index = None
+            if self.chat_mode:
+                if message.role:
+                    parts.append((f"{message.role.title()}: ", colour))
+                if message.content:
+                    colour = Style(color="white", bgcolor="blue") if invert else "white"
+                    parts.append((message.content, colour))
+                if not message.content and not message.role:
+                    parts.append("…")
+                parts.append("\n")
+            else:  # completion
+                if message.content:
+                    parts.append((message.content, colour))
+                if not message.content and not message.role:
+                    parts.append("…")
+                if message.role == "assistant":
+                    parts.append("\n")
+
+        content = Text.assemble(*parts)
+        self.write(content)
+        self.max_index = index
+
+    def watch_messages(self, messages: list[models.Message]):
+        self.update()
+
+    def watch_index(self):
+        self.update()
+
+    def action_cursor_down(self) -> None:
+        if self.index is None:
+            self.index = 0
+            return
+        if self.index < self.max_index:
+            self.index += 1
+
+    def action_cursor_up(self) -> None:
+        if self.index is None:
+            self.index = 0
+            return
+        if self.index > 0:
+            self.index -= 1
 
     def action_delete(self):
+        self.action_message(delete=True)
+
+    def action_message(self, edit=False, delete=False):
         if self.index is not None:
-            message = self.messages[self.index]
+            mi = self.index_message[self.index]
+            message = self.messages[mi]
             if message.role in ("user", "system"):
-                self.post_message(ChatLog.Action(self.index, delete=True))
+                self.post_message(ChatLog.Action(mi, delete=delete, edit=edit))
 
     def action_edit(self):
-        if self.index is not None:
-            message = self.messages[self.index]
-            if message.role in ("user", "system"):
-                self.post_message(ChatLog.Action(self.index, edit=True))
+        self.action_message(edit=True)
 
 
 @cache
@@ -88,10 +143,15 @@ class SessionWidget(Static):
     session = reactive(models.Session)
     editing: int | None = None
 
+    BINDINGS = [
+        ("escape", "interrupt", "Stop generation"),
+    ]
+
     def __init__(self, config: config.Config, session: models.Session):
         super().__init__(id="right")
         self.config = config
         self.session = session
+        self.interrupted = False
 
     def compose(self) -> ComposeResult:
         with Vertical():
@@ -107,14 +167,21 @@ class SessionWidget(Static):
         self.render_log()
 
     def render_log(self):
+        config = self.config.model[self.session.model]
         log = self.query_one(ChatLog)
+        log.chat_mode = not config.completion
         log.messages = self.session.messages
+        self.app.title = config.title
 
     def watch_session(self, session: models.Session):
-        if self.is_attached:
-            self.render_log()
-            config = self.config.model[self.session.model]
-            self.app.title = config.title
+        if session.id is None:
+            return
+        if not self.is_attached:
+            return
+
+        log = self.query_one(ChatLog)
+        log.index = None
+        self.render_log()
 
     @property
     def model_instance(self) -> Base:
@@ -163,26 +230,39 @@ class SessionWidget(Static):
             message.content = ""
         self.render_log()  # show "…" initially
 
-        async for update in model.query(messages):
-            if update.role:
-                message.role = update.role
-            if update.content:
-                message.content += update.content
-            self.render_log()
+        self.interrupted = False
 
-        message.tokens = model.token_count(message.content)
-        with orm.Session(engine) as sess:
-            sess.add(self.session)
-            sess.commit()
-            sess.refresh(self.session)
+        async def generation_task():
+            async for update in model.query(messages):
+                if update.role:
+                    message.role = update.role
+                if update.content:
+                    message.content += update.content
+                self.render_log()
+                if self.interrupted:
+                    self.log("INTERRUPTED")
+                    break
 
-        i.value = ""
-        i.disabled = False
-        i.focus()
-        self.editing = None
+            message.tokens = model.token_count(message.content)
+            with orm.Session(engine) as sess:
+                sess.add(self.session)
+                sess.commit()
+                sess.refresh(self.session)
+
+            i.value = ""
+            i.disabled = False
+            i.focus()
+            self.editing = None
+            self.generation = None
+
+        # Run this as a task to unblock message queue processing
+        self.generation = asyncio.create_task(generation_task())
+
+    def action_interrupt(self):
+        self.interrupted = True
 
     @on(ChatLog.Action)
-    def action_message(self, event: ChatLog.Action):
+    def on_action_message(self, event: ChatLog.Action):
         message = self.session.messages[event.index]
         if event.edit:
             input = self.query_one(Input)
@@ -246,6 +326,8 @@ class ChatApp(App):
                 sess.commit()
                 sess.refresh(session)
 
+        assert session.id
+        assert session.model
         items = [
             ListItem(Label(session.label, markup=False)) for session in self.sessions
         ]
