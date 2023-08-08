@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Any, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 import tomllib
 
 
@@ -26,6 +26,7 @@ class ModelConfig(BaseModel):
 
 
 class CTransformersModelConfig(ModelConfig):
+    model_config = ConfigDict(protected_namespaces=())
     module: Literal["ctransformers"]
     model: str = Field(..., serialization_alias="model_path_or_repo_id")
     model_file: str | None = None
