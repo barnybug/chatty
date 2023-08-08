@@ -7,7 +7,7 @@ from textual import on
 from textual.reactive import reactive
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Vertical
+from textual.containers import Container, Vertical
 from textual.message import Message as TextualMessage
 from textual.screen import ModalScreen
 from textual.validation import Length
@@ -165,6 +165,7 @@ class SessionWidget(Static):
 
     def on_mount(self):
         self.render_log()
+        self.query_one("#input").focus()
 
     def render_log(self):
         config = self.config.model[self.session.model]
@@ -282,15 +283,22 @@ class SessionWidget(Static):
 
 class ModelPickerModal(ModalScreen[str]):
     AUTO_FOCUS = "ListView"
+    BINDINGS = [
+        ("escape", "app.pop_screen", "Close"),
+    ]
 
     def __init__(self, config: config.Config) -> None:
         self.config = config
         super().__init__()
 
     def compose(self) -> ComposeResult:
-        items = [ListItem(Label(model.title)) for model in self.config.model.values()]
-        self.models = list(self.config.model.keys())
-        yield ListView(*items)
+        with Vertical() as container:
+            container.border_title = "Select model"
+            items = [
+                ListItem(Label(model.title)) for model in self.config.model.values()
+            ]
+            self.models = list(self.config.model.keys())
+            yield ListView(*items)
 
     @on(ListView.Selected)
     def on_selected(self, event: ListView.Selected) -> None:
@@ -317,17 +325,8 @@ class ChatApp(App):
     def compose(self) -> ComposeResult:
         with orm.Session(engine) as sess:
             self.sessions = sess.query(models.Session).all()
-            if self.sessions:
-                session = self.sessions[0]
-            else:
-                session = models.Session()
-                self.sessions.append(session)
-                sess.add(session)  # ?
-                sess.commit()
-                sess.refresh(session)
+            session = session = self.sessions[0] if self.sessions else None
 
-        assert session.id
-        assert session.model
         items = [
             ListItem(Label(session.label, markup=False)) for session in self.sessions
         ]
@@ -335,8 +334,14 @@ class ChatApp(App):
             *items,
             id="sessions",
         )
-        yield SessionWidget(self.config, session)
+        with Container(id="session_container"):
+            if session:
+                yield SessionWidget(self.config, session)
+
         yield Footer()
+
+        if not session:
+            self.call_later(self.action_new_session)
 
     @on(ListView.Highlighted, "#sessions")
     def session_changed(self):
@@ -352,10 +357,15 @@ class ChatApp(App):
             self.sessions.append(session)
             list_view.append(ListItem(Label(session.label)))
             list_view.index = len(list_view.children) - 1
-            widget = self.query_one(SessionWidget)
-            widget.session = session
-            input = self.query_one("#input", Input)
-            input.focus()
+            if self.query(SessionWidget):
+                widget = self.query_one(SessionWidget)
+                widget.session = session
+                input = self.query_one("#input", Input)
+                input.focus()
+            else:
+                widget = SessionWidget(self.config, session)
+                container = self.query_one("#session_container")
+                container.mount(widget)
 
         self.push_screen(ModelPickerModal(self.config), model_picked)
 

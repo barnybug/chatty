@@ -22,3 +22,23 @@ ChatLog > ListItem.--highlight {
 ChatLog:focus > ListItem.--highlight {
     background: $accent;
 }
+
+ModelPickerModal {
+    align: center middle;
+}
+
+ModelPickerModal > Widget {
+    padding: 1 2;
+    width: 60;
+    height: 14;
+    border: heavy $accent;
+    /* background: $surface; */
+}
+
+ModelPickerModal ListItem {
+    background: $background;
+}
+
+ModelPickerModal ListItem.--highlight {
+    background: $accent 50%;
+}
