@@ -32,6 +32,7 @@ class CTransformersModelConfig(ModelConfig):
     model_file: str | None = None
     model_type: str | None = None
     lib: Literal["avx2", "avx", "basic"] | None = None
+    local_files_only: bool = False
     # see https://github.com/marella/ctransformers#config
     top_k: int | None = None
     top_p: float | None = None
@@ -47,11 +48,12 @@ class CTransformersModelConfig(ModelConfig):
     gpu_layers: int | None = None
 
     # prompts
-    prefix: str | None = None
-    suffix: str | None = None
+    system_format: str | None = None
+    user_format: str | None = None
+    assistant_format: str | None = None
 
     def params(self) -> dict[str, Any]:
-        return super().params({"prefix", "suffix"})
+        return super().params({"system_format", "user_format", "assistant_format"})
 
 
 class OpenAIModelConfig(ModelConfig):

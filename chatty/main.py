@@ -72,7 +72,7 @@ class ChatLog(RichLog):
                     else "green"
                 )
             invert = False
-            if message.role == "user":
+            if message.role in ("user", "system"):
                 self.index_message.append(mi)
                 if index == self.index:
                     invert = True
@@ -175,9 +175,21 @@ class SessionWidget(Static):
         self.app.title = config.title
 
     def watch_session(self, session: models.Session):
-        if session.id is None:
-            return
         if not self.is_attached:
+            return
+
+        config = self.config.model[self.session.model]
+        if len(session.messages) == 0 and config.system_message:
+            sysmsg = models.Message(
+                role="system",
+                content=config.system_message,
+                session=session,
+                tokens=self.model_instance.token_count(config.system_message),
+            )
+            session.messages.append(sysmsg)
+
+        if session.id is None:
+            self.render_log()
             return
 
         log = self.query_one(ChatLog)
@@ -217,18 +229,26 @@ class SessionWidget(Static):
 
         i.disabled = True
 
-        messages = (
-            self.session.messages[: self.editing + 1]
-            if self.editing is not None
-            else self.session.messages
-        )
         if self.editing is None:
             message = models.Message(role="", content="")
             self.session.messages.append(message)
+            messages = self.session.messages
         else:
-            message = self.session.messages[self.editing + 1]
-            message.role = ""
-            message.content = ""
+            i = self.editing + 1
+            # find the next assistant message to regenerate
+            while i < len(self.session.messages):
+                message = self.session.messages[i]
+                if message.role == "assistant":
+                    break
+                i += 1
+            if i < len(self.session.messages):
+                message.role = ""
+                message.content = ""
+            else:
+                message = models.Message(role="", content="")
+                self.session.messages.append(message)
+            # Send context up to preceding assistant
+            messages = self.session.messages[:i]
         self.render_log()  # show "…" initially
 
         self.interrupted = False

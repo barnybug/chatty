@@ -28,19 +28,21 @@ class CTransformers(Base):
 
     async def query(self, messages: list[Message]) -> AsyncGenerator[Update, None]:
         msgs = []
-        for i, message in enumerate(messages):
+        for message in messages:
             content = message.content
-            if message.role in "user":
-                if i == 0 and self.config.system_message:
-                    content = self.config.system_message + " " + content
-                if self.config.prefix:
-                    content = self.config.prefix + " " + content
-                if self.config.suffix:
-                    content = content + " " + self.config.suffix
-                msgs.append(content)
-            elif message.role in "assistant":
-                msgs.append(message.content)
-        text = "\n".join(msgs)
+            if message.role == "system":
+                if self.config.system_format:
+                    content = self.config.system_format.replace("{message}", content)
+            elif message.role == "user":
+                if self.config.user_format:
+                    content = self.config.user_format.replace("{message}", content)
+            elif message.role == "assistant":
+                if self.config.assistant_format:
+                    content = self.config.assistant_format.replace("{message}", content)
+            msgs.append(content)
+        text = "".join(msgs)
+
+        print("PROMPT:\n", text)
 
         queue = asyncio.Queue[str]()
         loop = asyncio.get_event_loop()
@@ -70,7 +72,7 @@ class CTransformers(Base):
         thread = threading.Thread(target=generate)
         thread.start()
         try:
-            yield Update(role="Assistant")
+            yield Update(role="assistant")
             while True:
                 content = await queue.get()
                 if content is None:

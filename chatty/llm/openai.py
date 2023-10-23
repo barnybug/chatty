@@ -20,8 +20,6 @@ class OpenAIModel(Base):
             for message in messages
             if message.role in ("user", "assistant", "system")
         ]
-        if self.config.system_message:
-            msgs.insert(0, {"role": "system", "content": self.config.system_message})
         try:
             response = await openai.ChatCompletion.acreate(
                 messages=msgs,

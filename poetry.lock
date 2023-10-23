@@ -293,14 +293,14 @@ files = [
 
 [[package]]
 name = "ctransformers"
-version = "0.2.17"
+version = "0.2.27"
 description = "Python bindings for the Transformer models implemented in C/C++ using GGML library."
 category = "main"
 optional = false
 python-versions = "*"
 files = [
-    {file = "ctransformers-0.2.17-py3-none-any.whl", hash = "sha256:903c16b38f5b2750ee34b90107c3a72351d7a9a201a6987a6560bd50874e9698"},
-    {file = "ctransformers-0.2.17.tar.gz", hash = "sha256:0c9de34cc8295ba6cb940e413130e6658fac54a99cecfa6098ac04638fd9301e"},
+    {file = "ctransformers-0.2.27-py3-none-any.whl", hash = "sha256:6a3ba47556471850d95fdbc59299a82ab91c9dc8b40201c5e7e82d71360772d9"},
+    {file = "ctransformers-0.2.27.tar.gz", hash = "sha256:25653d4be8a5ed4e2d3756544c1e9881bf95404be5371c3ed506a256c28663d5"},
 ]
 
 [package.dependencies]
@@ -308,6 +308,8 @@ huggingface-hub = "*"
 py-cpuinfo = ">=9.0.0,<10.0.0"
 
 [package.extras]
+cuda = ["nvidia-cublas-cu12", "nvidia-cuda-runtime-cu12"]
+gptq = ["exllama (==0.1.0)"]
 tests = ["pytest"]
 
 [[package]]
@@ -1556,4 +1558,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "cb9d8d0d1d2157d542ce8bcc22dd552af0a92c365707de5f190edb82523c611d"
+content-hash = "7506f27fa9a45cbf4976395b550c1d69abc232ff25eb2e2c2fd431290700b85b"
